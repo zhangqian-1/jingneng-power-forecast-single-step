@@ -1,10 +1,6 @@
-# 京能七站总功率预测服务
+# 京能七站总功率单点预测服务
 
-本目录对应独立的[单点预测源码仓库](https://github.com/zhangqian-1/jingneng-power-forecast-single-step)。[当前已验证镜像下载](https://github.com/zhangqian-1/jingneng-power-forecast-downloads/releases/tag/v7station-single-step-a9614ff30661)提供AMD64和ARM64两套交付包；镜像对应源码提交为 `a9614ff306613133b25874c955003042a103d2b4`，本仓库保留该提交，可直接核对。
-
-接收七站真实功率、温度和湿度，返回下一个15分钟时刻的 **1点总功率预测**，历史输入长度为3天（288点），单位MW。当前模型为 `single_step_7station_2025_v1`，NHITS、PatchTST和StationAttentionHF均已重新训练为288点输入、1点输出，采用验证集选择的单点加权融合。部署时直接加载新权重。
-
-`models/versions/` 仅保留这一套单点模型，权重与清单合计约6.92 MiB。旧96点权重已移出生产部署包，旧曲线融合代码已移除；NHITS、PatchTST的通用加载代码位于 `app/models/neural_forecast.py`。
+使用过去3天（288点）的历史数据，预测未来15分钟的1点七站总功率，单位MW。
 
 本版仅提供平台JSON接口：`POST /api/v1/fluxcast/compute`，输入 `point_table + frames`，输出 `result_point`。`varname` 为 `totalPowerForecast`，`event_key` 沿用 `JNH.Fluxcast.Compute`。历史/天气未就绪返回HTTP 200和空结果，附原因。
 
@@ -68,9 +64,7 @@ python tests/run_platform_verification.py --output-dir tests/results/platform_ad
 
 最后一条会自行启动和关闭本机测试服务，使用独立缓存，验证平台接口、旧路由已移除、异常输入、重启恢复、旧时间规则结果隔离，以及北京时间2025-10-20至12-31共73天/7008点的滚动预测与MAPE。请求先换算为UTC，评分再与原始时间对齐。输出目录必须不存在，复测换新目录。结果见 `verification.json`，不会连接生产服务或修改模型。
 
-2026-09-25重新执行本地检查，全部通过：44项单元及预处理测试、7008点真实HTTP回放、预测与重启恢复，以及只补3天真实数据即可出1点预测的空缓存检查。HTTP回放MAPE为3.1991%。本次仅验证本机Python服务和Compose配置语法，尚未构建或验证Docker镜像、容器。记录与未完成的容器/服务器验收见 [平台适配验证记录](docs/平台适配验证记录.md)。
-
-同日后续封装已完成AMD64、ARM64容器验证：两种架构均通过完整7008点回放、容器重建后缓存恢复、镜像导出导入及预测一致性检查，MAPE均约3.1991%。预测目标及UTC时间与本地逐点一致，最大预测差为0.0001 MW。目标服务器实际数据接入仍需联调。
+本地检查及AMD64、ARM64容器测试均已通过，包括7008点真实数据回放、缓存恢复、镜像导出导入和预测一致性检查。历史测试集MAPE约3.1991%。目标服务器实际数据接入仍需联调验收。
 
 已有独立测试服务时也可执行：
 
@@ -101,14 +95,9 @@ docker compose logs --tail 100 forecast
 
 ## 版本与下载
 
-本地2026-09-24改造版为 `single_step_7station_2025_v1`：三个子模型均使用过去288点，直接预测下一点。原96点曲线的平滑、去均值和高频融合不适用于单点，现由验证集选择标量融合系数。模型及预处理在部署时固定，不在线训练。
+本版为**单点预测服务**。使用过去3天（288点）的历史数据，预测未来15分钟的1点七站总功率，单位MW。
 
-2025年测试区间为10月20日至12月31日，共7008次单步预测。离线MAPE为3.1991%，MAE为78.3069 MW，RMSE为113.2851 MW；上一时刻功率基线MAPE为3.2543%。验证集仅用于选模型检查点和融合系数，测试集不参与选择。旧的一天96点误差与当前单点误差不直接比较。
+- [本版源码](https://github.com/zhangqian-1/jingneng-power-forecast-single-step)
+- [本版镜像下载](https://github.com/zhangqian-1/jingneng-power-forecast-single-step/releases/tag/v7station-single-step-a9614ff30661)：提供AMD64、ARM64离线部署包及校验文件。
 
-该单点版本使用新的源码提交和镜像标签；交付状态以对应提交的构建测试结果及Release附件为准。此前源码提交 `11f034b` 及其已发布AMD64/ARM64镜像属于96点版本，不能用于本次单点部署。
-
-本仓库后续构建和测试通过后，工作流向 [单点源码仓库Releases](https://github.com/zhangqian-1/jingneng-power-forecast-single-step/releases) 发布 `v7station-single-step-提交号前12位` 交付包；镜像和校验文件可再同步至 [公开下载仓库](https://github.com/zhangqian-1/jingneng-power-forecast-downloads/releases)。当前已封装版本的[原始构建报告](https://github.com/zhangqian-1/jingneng-power-forecast/releases/tag/v7station-single-step-a9614ff30661)保留在原构建仓库。下载仓库的自动生成 Source code 附件只是下载仓库自身文件，算法源码从本单点源码仓库获取。
-
-2026-09-26单独建立本源码仓库，仅调整仓库说明及后续镜像发布地址，运行代码、模型权重和接口行为与上述已验证版本一致。
-
-源码、镜像、模型清单、release.json和SHA256SUMS须配套。生产部署包及Docker构建上下文均只保留当前单点模型。升级使用新的独立runtime目录，以UTC补传至少288个连续可用历史点；天气尚未有过真实观测时，还须补充更早的真实天气历史。目标服务器仍需平台联调。
+按服务器架构选择对应镜像，部署步骤见 [Docker部署运行说明](docs/Docker部署运行说明.md)。

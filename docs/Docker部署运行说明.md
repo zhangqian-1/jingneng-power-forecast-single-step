@@ -6,9 +6,9 @@
 
 生产运行不依赖测试集，不进行在线训练。本文面向部署及运维人员；测点、输入输出字段和调用样例见 [接口交接说明](接口交接说明.md) 与 [测点需求清单](测点需求清单.md)。
 
-生产包只保留 `single_step_7station_2025_v1` 模型目录，三个子模型均为288点输入、1点输出。旧模型已移出，构建时无需携带旧权重、训练数据或测试缓存。
+生产包包含 `single_step_7station_2025_v1` 模型，使用288个历史点预测下一点。运行时无需训练数据或测试缓存。
 
-历史训练数据已确认为北京时间（`Asia/Shanghai`）。本版接口收发UTC，模型内部按北京时间处理，不依赖容器或宿主机时区；响应保留请求的时间格式。目标服务器仍需联调。单点镜像是否完成构建和测试，以对应提交的Release附件及 `release.json` 为准；此前提交 `11f034b` 对应的是96点版本，不能用于本次单点部署。
+历史训练数据已确认为北京时间（`Asia/Shanghai`）。接口输入、输出均为UTC，模型内部按北京时间处理，不依赖容器或宿主机时区；响应保留请求的时间格式。AMD64、ARM64镜像均已完成构建和容器验证，目标服务器仍需联调验收。
 
 | 项目 | 要求 |
 |---|---|
@@ -135,7 +135,7 @@ docker load -i jingneng-power-forecast.tar
 
 ### A.2 导入配套镜像包
 
-本次单点镜像发布后，从 [公开下载仓库Releases](https://github.com/zhangqian-1/jingneng-power-forecast-downloads/releases) 获取与交接提交号对应的镜像ZIP及校验文件，或直接接收算法方提供的同一文件。[源码仓库Releases](https://github.com/zhangqian-1/jingneng-power-forecast/releases) 保存构建原件和测试报告。核对 `release.json` 中的模型为 `single_step_7station_2025_v1`；既有96点镜像不能代替本次版本。
+从 [本版镜像下载](https://github.com/zhangqian-1/jingneng-power-forecast-single-step/releases/tag/v7station-single-step-a9614ff30661) 获取单点预测的镜像ZIP及校验文件。按服务器架构选择AMD64或ARM64，包内模型版本为 `single_step_7station_2025_v1`。
 
 先按同名 `.zip.sha256` 文件或发布页的 `SHA256SUMS` 核对ZIP的SHA256。Linux使用 `sha256sum -c 校验文件名`；Windows使用 `Get-FileHash -Algorithm SHA256 镜像ZIP文件名`。无需把ZIP重新上传GitHub才能部署，可通过公司文件传输渠道直接交付。
 
@@ -164,8 +164,6 @@ docker load -i image.tar.gz
 | `platform_contract`、`api_timezone`、`training_timezone`、`time_policy`、`timezone_basis`、`utc_production_acceptance` | 标记接口版本、外部UTC、内部Asia/Shanghai、时间规则版本及口径依据；目标服务器验收仍待完成 |
 
 文件完整性按 `SHA256SUMS` 校验。镜像内仅包含运行代码、依赖及当前七站模型；文档、样例位于交付包外层，不参与运行。
-
-历史Release及提交 `11f034b` 的既有附件仍属于旧96点版本，本地修改不会改变已发布附件。单点版本交付必须使用新标签及对应源码提交，不覆盖旧版校验文件。Release附件不受Actions制品14天保留期限制。
 
 后续构建：GitHub 推送 `main` 默认构建 AMD64；ARM64 通过 Actions 手动运行 `Build And Test Docker Image`，选择 `architecture=arm64`。通过全部测试后，工作流直接将 `offline-image-…zip`、同名 `.sha256` 和 `container-checks-…zip` 上传至源码仓库的 `v7station-single-step-提交号前12位` Release。Release中的架构以实际附件为准；红叉或附件缺失时不得视为交付完成。公开下载仓库由交付人员另行同步镜像及校验文件，按交付范围同步测试报告。GitHub验证流程不在GitLab自动执行。
 
