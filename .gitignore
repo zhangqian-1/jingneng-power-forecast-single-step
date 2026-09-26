@@ -16,7 +16,7 @@ env/
 .env.*
 !.env.example
 
-# Real CSVs are kept only for the private GitHub integration test.
+# Generated request fixtures are local; tracked real_data_raw CSVs support replay tests.
 tests/fixtures/
 
 # Generated local/CI reports are artifacts, not source files.

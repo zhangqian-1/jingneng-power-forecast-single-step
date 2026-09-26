@@ -1,5 +1,7 @@
 # 京能七站总功率预测服务
 
+本目录对应独立的[单点预测源码仓库](https://github.com/zhangqian-1/jingneng-power-forecast-single-step)。[当前已验证镜像下载](https://github.com/zhangqian-1/jingneng-power-forecast-downloads/releases/tag/v7station-single-step-a9614ff30661)提供AMD64和ARM64两套交付包；镜像对应源码提交为 `a9614ff306613133b25874c955003042a103d2b4`，本仓库保留该提交，可直接核对。
+
 接收七站真实功率、温度和湿度，返回下一个15分钟时刻的 **1点总功率预测**，历史输入长度为3天（288点），单位MW。当前模型为 `single_step_7station_2025_v1`，NHITS、PatchTST和StationAttentionHF均已重新训练为288点输入、1点输出，采用验证集选择的单点加权融合。部署时直接加载新权重。
 
 `models/versions/` 仅保留这一套单点模型，权重与清单合计约6.92 MiB。旧96点权重已移出生产部署包，旧曲线融合代码已移除；NHITS、PatchTST的通用加载代码位于 `app/models/neural_forecast.py`。
@@ -68,6 +70,8 @@ python tests/run_platform_verification.py --output-dir tests/results/platform_ad
 
 2026-09-25重新执行本地检查，全部通过：44项单元及预处理测试、7008点真实HTTP回放、预测与重启恢复，以及只补3天真实数据即可出1点预测的空缓存检查。HTTP回放MAPE为3.1991%。本次仅验证本机Python服务和Compose配置语法，尚未构建或验证Docker镜像、容器。记录与未完成的容器/服务器验收见 [平台适配验证记录](docs/平台适配验证记录.md)。
 
+同日后续封装已完成AMD64、ARM64容器验证：两种架构均通过完整7008点回放、容器重建后缓存恢复、镜像导出导入及预测一致性检查，MAPE均约3.1991%。预测目标及UTC时间与本地逐点一致，最大预测差为0.0001 MW。目标服务器实际数据接入仍需联调。
+
 已有独立测试服务时也可执行：
 
 ```bash
@@ -103,6 +107,8 @@ docker compose logs --tail 100 forecast
 
 该单点版本使用新的源码提交和镜像标签；交付状态以对应提交的构建测试结果及Release附件为准。此前源码提交 `11f034b` 及其已发布AMD64/ARM64镜像属于96点版本，不能用于本次单点部署。
 
-构建和测试通过后，工作流向 [源码仓库Releases](https://github.com/zhangqian-1/jingneng-power-forecast/releases) 发布 `v7station-single-step-提交号前12位` 交付包；镜像和校验文件可再同步至 [公开下载仓库](https://github.com/zhangqian-1/jingneng-power-forecast-downloads/releases)。下载仓库的自动生成 Source code 附件只是下载仓库自身文件，算法源码从源码仓库获取。
+本仓库后续构建和测试通过后，工作流向 [单点源码仓库Releases](https://github.com/zhangqian-1/jingneng-power-forecast-single-step/releases) 发布 `v7station-single-step-提交号前12位` 交付包；镜像和校验文件可再同步至 [公开下载仓库](https://github.com/zhangqian-1/jingneng-power-forecast-downloads/releases)。当前已封装版本的[原始构建报告](https://github.com/zhangqian-1/jingneng-power-forecast/releases/tag/v7station-single-step-a9614ff30661)保留在原构建仓库。下载仓库的自动生成 Source code 附件只是下载仓库自身文件，算法源码从本单点源码仓库获取。
+
+2026-09-26单独建立本源码仓库，仅调整仓库说明及后续镜像发布地址，运行代码、模型权重和接口行为与上述已验证版本一致。
 
 源码、镜像、模型清单、release.json和SHA256SUMS须配套。生产部署包及Docker构建上下文均只保留当前单点模型。升级使用新的独立runtime目录，以UTC补传至少288个连续可用历史点；天气尚未有过真实观测时，还须补充更早的真实天气历史。目标服务器仍需平台联调。
